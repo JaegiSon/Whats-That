@@ -1,5 +1,5 @@
 import fs from 'fs';
-import config from './config';
+import config from './Settings';
 import User from './User';
 //read the words from the words array file saved in.
 const words: string[] = JSON.parse(

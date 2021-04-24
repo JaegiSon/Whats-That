@@ -1,132 +1,196 @@
 import express from 'express';
-import Room from './Room';
 import User from './User';
-import config from './config';
+import setting from './Settings';
+import fs from 'fs';
 
+export type ChatMsg = { msg: string; type: string; username?: string };
+
+const words: string[] = JSON.parse(
+  fs.readFileSync(`${__dirname}/../words.json`).toString()
+);
+
+let chosenWord=pickRandomWord()
+let room: User[] = [];
+// let drawing: any = []
+let currentUser: number = 0;
+let turnTimer: NodeJS.Timeout | null;
+
+//Sends data to all users except the current user
+function sendData(
+  msg: string,
+  payload: unknown,
+  excludedUser: User | undefined = undefined
+): void {
+  room.forEach((user: User): void => {
+    if (!excludedUser || (excludedUser && user.id !== excludedUser.id)) {
+      user.socket.emit(msg, payload);
+    }
+  });
+}
+function sendChat(msg: ChatMsg, excludedUser?: User) {
+  sendData('chatMsg', msg, excludedUser);
+}
+
+function pickRandomWord(): string {
+  return words[Math.floor(Math.random() * words.length)];
+}
+
+function drawStart(word?: string): void{
+  sendData('drawStart',{
+    socketId: room[currentUser].id,
+    startTime: Date.now(),
+    timeToComplete: setting.TIME_EACH_TURN,
+    word: word?.replace(/./gs, '_') //use regex to replace the words with _
+  })
+  room[0].socket.emit('drawStart', {
+    socketId: room[currentUser].id,
+    startTime: Date.now(),
+    timeToComplete: setting.TIME_EACH_TURN,
+    word: word
+  })
+  sendChat({
+    msg: `It is ${room[currentUser].username}'s turn to draw`,
+    type: 'alert',
+  })
+  turnTimer=setTimeout(()=>{
+      sendData('roundEnd', 1);
+      nextTurn()
+  }, setting.TIME_EACH_TURN)
+}
+
+function guessWord(word?: string): void{
+  sendData('guessWord',{
+    socketId: room[currentUser].id,
+    startTime: Date.now(),
+    timeToComplete: setting.TIME_TO_GUESS,
+    
+  })
+  room[0].socket.emit('guessWord', {
+    socketId: room[currentUser].id,
+    startTime: Date.now(),
+    timeToComplete: setting.TIME_TO_GUESS,
+    
+  })
+  sendChat({
+    msg: `${room[currentUser].username}' HAS TO GUESS NOW`,
+    type: 'alert',
+  })
+  turnTimer=setTimeout(()=>{
+      sendData('roundEnd', 1);
+      currentUser=-1;
+      chosenWord=pickRandomWord()
+      sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
+      setTimeout(()=>{
+        nextTurn()
+      }, setting.ROUND_DELAY)
+      
+  }, setting.TIME_TO_GUESS)
+}
+
+function nextTurn(){
+  if (currentUser + 2  === room.length) {
+    currentUser++
+    guessWord(chosenWord);
+  }
+  else {
+    currentUser++;
+    // drawing = [];
+    drawStart(chosenWord);
+  }
+}
+
+//CREATE SERVER
 const app = express();
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, (): void => {
   console.log(`server listening on ${PORT}`);
 });
-
 const io: SocketIO.Socket = require('socket.io')(server);
-let rooms: Room[] = [];
+
+//CREATE A ROOM
 io.on('connection', (socket: SocketIO.Socket): void => {
-  if (rooms.length === 0) {
-    rooms.push(new Room());
-  }
-  let roomIdx = rooms.findIndex((room) => !room.isFull());
-  if (roomIdx === -1) {
-    rooms.push(new Room());
-    roomIdx = rooms.length - 1;
-  }
-  const room = rooms[roomIdx];
+
+//CREATEA A NEW USER USING PASSED THROUGH SOCKET DETAIL
   const user = new User(socket.id, socket, socket.handshake.query.username);
-  room.addUser(user);
-  socket.emit('usersState', room.getUsersState());
-  if (room.gameStarted && room.round && room.round.isActive) {
-    const roundInfo = room.getRoundInfo();
-    socket.emit('gameStart');
-    socket.emit('roundStart', {
-      ...roundInfo,
-      word: roundInfo.word.replace(/./gs, '_'),
-    });
-    socket.emit('drawingState', room.drawingState);
+
+  room.push(user);
+  sendData('userJoin', user.describe())
+  sendChat({
+    type: 'good',
+    msg: `${user.username} has joined the game`,
+  })
+  socket.emit('usersState', room.map((user: User) => user.describe()));
+
+  if (room.length === setting.MIN_PLAYERS_PER_ROOM) {
+    sendData('gameStart',1)
+    
+    drawStart(chosenWord)
+
   }
-  if (room.users.length === config.MIN_PLAYERS_PER_ROOM) {
-    room.startGame();
-    room.startRound();
-  }
-  if (room.users.length < config.MIN_PLAYERS_PER_ROOM) {
+
+  //if the room has not enough players, send message informing that room requires more players with half a second delay
+  if (room.length < setting.MIN_PLAYERS_PER_ROOM) {
     setTimeout(
       () =>
-        room.broadcastChatMsg({
+        sendChat({
           type: 'alert',
           msg: `need ${
-            config.MIN_PLAYERS_PER_ROOM - room.users.length
+            setting.MIN_PLAYERS_PER_ROOM - room.length
           } more player(s) to start the game`,
         }),
-      50
+      50    
     );
   }
+
   socket.on('lineDraw', (msg): void => {
-    if (room.getActiveUser().id === user.id) {
-      room.addToDrawingState(msg);
-      room.broadcast('lineDraw', msg, user);
+    if (room[currentUser].id === user.id) {
+      // drawing.push(msg);
+      sendData('lineDraw', msg, user);
     }
   });
+
   socket.on('chatMsg', (msg): void => {
-    const round = room.round;
-    if (round && round.isActive && room.getActiveUser()) {
-      if (user.id === room.getActiveUser().id) {
-        room.broadcastChatMsgToCorrectGuessers({
-          msg: msg.msg,
-          type: 'good',
-          username: user.username,
-        });
-        return;
-      }
-      if (round.didUserGuess(user.id)) {
-        room.broadcastChatMsgToCorrectGuessers({
-          msg: msg.msg,
-          type: 'good',
-          username: user.username,
-        });
-      } else {
-        if (round.word === msg.msg) {
-          user.socket.emit('chatMsg', {
-            msg: msg.msg,
-            type: 'good',
-            username: user.username,
-          });
-          room.broadcastChatMsgToCorrectGuessers({
-            msg: msg.msg,
-            type: 'good',
-            username: user.username,
-          });
-          room.broadcastChatMsg({
-            type: 'good',
-            msg: `${user.username} guessed the word correctly`,
-          });
-          round.assignUserScore(user.id);
-          if (
-            round.didEveryoneGuessCorrectly(room.getActiveUser().id, room.users)
-          ) {
-            clearTimeout(room.endRoundTimeOut as NodeJS.Timeout);
-            room.endRound();
-            room.endRoundTimeOut = setTimeout(
-              () => room.startNextRound(),
-              config.ROUND_DELAY
-            );
-          }
-        } else {
-          room.broadcastChatMsg({ ...msg, username: user.username });
-        }
-      }
-    } else {
-      room.broadcastChatMsg({ ...msg, username: user.username });
+    if (chosenWord === msg.msg) {
+      user.socket.emit('chatMsg', {
+        msg: msg.msg,
+        type: 'good',
+        username: user.username,
+      });
+      sendChat({
+        type: 'good',
+        msg: `${user.username} has guessed correctly! The word ${chosenWord} was  Good Job`,
+      });
+      sendData('correctGuess',1)
+    }else{
+      sendChat({ ...msg, username: user.username })
     }
-  });
+  })
+  
   
   socket.on('disconnect', (): void => {
-    const activeUser = room.getActiveUser();
-    room.removeUser(user);
-    if (room.users.length < config.MIN_PLAYERS_PER_ROOM) {
-      if (room.gameStarted) {
-        room.endGame();
-        rooms = rooms.filter((rm) => room !== rm);
-        return;
-      }
-    }
-    if (activeUser && activeUser.id === user.id) {
-      room.activeUserIdx--;
-      clearTimeout(room.endRoundTimeOut as NodeJS.Timeout);
-      room.endRound(activeUser);
-      room.endRoundTimeOut = setTimeout(
-        () => room.startNextRound(),
-        config.ROUND_DELAY
-      );
-    }
+    const turnUser = room[currentUser]
+  //   const activeUser = room.getActiveUser();
+  //   room.removeUser(user);
+  //   if (room.users.length < config.MIN_PLAYERS_PER_ROOM) {
+  //     if (room.gameStarted) {
+  //       room.endGame();
+  //       rooms = rooms.filter((rm) => room !== rm);
+  //       return;
+  //     }
+  //   }
+      if(room[currentUser].id===user.id){
+        clearTimeout(turnTimer as NodeJS.Timeout);
+
+      } 
+  //   if (activeUser && activeUser.id === user.id) {
+  //     room.activeUserIdx--;
+  //     clearTimeout(room.endRoundTimeOut as NodeJS.Timeout);
+  //     room.endRound(activeUser);
+  //     room.endRoundTimeOut = setTimeout(
+  //       () => room.startNextRound(),
+  //       config.ROUND_DELAY
+  //     );
+  //   }
   });
 });

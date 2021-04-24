@@ -15,134 +15,87 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var express_1 = __importDefault(require("express"));
-var Room_1 = __importDefault(require("./Room"));
 var User_1 = __importDefault(require("./User"));
-var config_1 = __importDefault(require("./config"));
+var Room_1 = __importDefault(require("./Room"));
+var Settings_1 = __importDefault(require("./Settings"));
+//random word
+//CREATE SERVER
 var app = express_1.default();
 var PORT = process.env.PORT || 5000;
 var server = app.listen(PORT, function () {
-    // eslint-disable-next-line no-console
     console.log("server listening on " + PORT);
 });
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 var io = require('socket.io')(server);
 var rooms = [];
+//CREATE A ROOM
 io.on('connection', function (socket) {
     if (rooms.length === 0) {
         rooms.push(new Room_1.default());
     }
-    var roomIdx = rooms.findIndex(function (room) { return !room.isFull(); });
-    if (roomIdx === -1) {
+    var roomID = rooms.findIndex(function (room) { return !room.isFull(); });
+    if (roomID === -1) {
         rooms.push(new Room_1.default());
-        roomIdx = rooms.length - 1;
+        roomID = rooms.length - 1;
     }
-    var room = rooms[roomIdx];
+    var room = rooms[roomID];
+    //CREATEA A NEW USER USING PASSED THROUGH SOCKET DETAIL
     var user = new User_1.default(socket.id, socket, socket.handshake.query.username);
     room.addUser(user);
-    socket.emit('usersState', room.getUsersState());
-    if (room.gameStarted && room.round && room.round.isActive) {
-        var roundInfo = room.getRoundInfo();
-        socket.emit('gameStart');
-        socket.emit('roundStart', __assign(__assign({}, roundInfo), { word: roundInfo.word.replace(/./gs, '_') }));
-        socket.emit('drawingState', room.drawingState);
+    socket.emit('usersState', room.users.map(function (user) { return user.describe(); }));
+    //if the room has enough players, start the game in the room
+    if (room.users.length === Settings_1.default.MIN_PLAYERS_PER_ROOM) {
+        room.gameStart();
+        room.drawStart();
     }
-    if (room.users.length === config_1.default.MIN_PLAYERS_PER_ROOM) {
-        room.startGame();
-        room.startRound();
-    }
-    if (room.users.length < config_1.default.MIN_PLAYERS_PER_ROOM) {
+    //if the room has not enough players, send message informing that room requires more players with half a second delay
+    if (room.users.length < Settings_1.default.MIN_PLAYERS_PER_ROOM) {
         setTimeout(function () {
-            return room.broadcastChatMsg({
+            return room.sendChat({
                 type: 'alert',
-                msg: "need " + (config_1.default.MIN_PLAYERS_PER_ROOM - room.users.length) + " more player(s) to start the game",
+                msg: "need " + (Settings_1.default.MIN_PLAYERS_PER_ROOM - room.users.length) + " more player(s) to start the game",
             });
         }, 50);
     }
     socket.on('lineDraw', function (msg) {
-        if (room.getActiveUser().id === user.id) {
-            room.addToDrawingState(msg);
-            room.broadcast('lineDraw', msg, user);
+        if (room.getcurrentUser().id === user.id) {
+            // drawing.push(msg);
+            room.sendData('lineDraw', msg, user);
         }
     });
     socket.on('chatMsg', function (msg) {
-        var round = room.round;
-        if (round && round.isActive && room.getActiveUser()) {
-            if (user.id === room.getActiveUser().id) {
-                room.broadcastChatMsgToCorrectGuessers({
-                    msg: msg.msg,
-                    type: 'good',
-                    username: user.username,
-                });
-                return;
-            }
-            if (round.didUserGuess(user.id)) {
-                room.broadcastChatMsgToCorrectGuessers({
-                    msg: msg.msg,
-                    type: 'good',
-                    username: user.username,
-                });
-            }
-            else {
-                if (round.word === msg.msg) {
-                    user.socket.emit('chatMsg', {
-                        msg: msg.msg,
-                        type: 'good',
-                        username: user.username,
-                    });
-                    room.broadcastChatMsgToCorrectGuessers({
-                        msg: msg.msg,
-                        type: 'good',
-                        username: user.username,
-                    });
-                    room.broadcastChatMsg({
-                        type: 'good',
-                        msg: user.username + " guessed the word correctly",
-                    });
-                    round.assignUserScore(user.id);
-                    if (round.didEveryoneGuessCorrectly(room.getActiveUser().id, room.users)) {
-                        clearTimeout(room.endRoundTimeOut);
-                        room.endRound();
-                        room.endRoundTimeOut = setTimeout(function () { return room.startNextRound(); }, config_1.default.ROUND_DELAY);
-                    }
-                }
-                else {
-                    room.broadcastChatMsg(__assign(__assign({}, msg), { username: user.username }));
-                }
-            }
+        if (room.chosenWord === msg.msg) {
+            room.sendChat({
+                type: 'good',
+                msg: user.username + " has guessed correctly! The word was " + room.chosenWord + ". Good job team!!!",
+            });
+            room.sendData('correctGuess', 1);
         }
         else {
-            room.broadcastChatMsg(__assign(__assign({}, msg), { username: user.username }));
+            room.sendChat(__assign(__assign({}, msg), { username: user.username }));
         }
     });
-    socket.on('voteKick', function () {
-        if (room.getActiveUser() && room.round && room.round.isActive) {
-            room.round.kickVotes[user.id] = true;
-            var kickVotes = room.round.getVoteKicks(room.users);
-            var voteRequirement = Math.ceil(room.users.length / 2);
-            room.broadcastChatMsg({
-                msg: "'" + user.username + "' is voting to kick out " + room.getActiveUser().username + "(" + kickVotes + "/" + voteRequirement + ")",
-                type: 'warn',
-            }, room.getActiveUser());
-            if (kickVotes >= voteRequirement) {
-                room.getActiveUser().socket.emit('kickOut', 1);
-            }
-        }
-    });
-    socket.on('disconnect', function () {
-        var activeUser = room.getActiveUser();
-        room.removeUser(user);
-        if (room.users.length < config_1.default.MIN_PLAYERS_PER_ROOM) {
-            if (room.gameStarted) {
-                room.endGame();
-                rooms = rooms.filter(function (rm) { return room !== rm; });
-                return;
-            }
-        }
-        if (activeUser && activeUser.id === user.id) {
-            room.activeUserIdx--;
-            clearTimeout(room.endRoundTimeOut);
-            room.endRound(activeUser);
-            room.endRoundTimeOut = setTimeout(function () { return room.startNextRound(); }, config_1.default.ROUND_DELAY);
-        }
-    });
+    // socket.on('disconnect', (): void => {
+    //   const turnUser = room[currentUser]
+    // //   const activeUser = room.getActiveUser();
+    // //   room.removeUser(user);
+    // //   if (room.users.length < config.MIN_PLAYERS_PER_ROOM) {
+    // //     if (room.gameStarted) {
+    // //       room.endGame();
+    // //       rooms = rooms.filter((rm) => room !== rm);
+    // //       return;
+    // //     }
+    // //   }
+    //     if(room[currentUser].id===user.id){
+    //       clearTimeout(turnTimer as NodeJS.Timeout);
+    //     } 
+    // //   if (activeUser && activeUser.id === user.id) {
+    // //     room.activeUserIdx--;
+    // //     clearTimeout(room.endRoundTimeOut as NodeJS.Timeout);
+    // //     room.endRound(activeUser);
+    // //     room.endRoundTimeOut = setTimeout(
+    // //       () => room.startNextRound(),
+    // //       config.ROUND_DELAY
+    // //     );
+    // //   }
+    // });
 });

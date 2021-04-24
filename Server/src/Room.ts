@@ -1,53 +1,67 @@
-import config from './config';
-import Round from './Round';
+import express from 'express';
 import User from './User';
+import setting from './Settings';
+import fs from 'fs';
+const words: string[] = JSON.parse(
+  fs.readFileSync(`${__dirname}/../words.json`).toString()
+);
+
+
 export type ChatMsg = { msg: string; type: string; username?: string };
-export default class Room {
+
+export default class Room{
   users: User[];
-  drawingState: any[];
   gameStarted: boolean;
-  activeUserIdx: number;
-  round: Round | null;
-  endRoundTimeOut: NodeJS.Timeout | null;
+  currentUser: number;
+  turnTimer: NodeJS.Timeout | null;
+  chosenWord: string;
+  firstDrawer: number;
 
   constructor() {
     this.users = [];
-    this.drawingState = [];
     this.gameStarted = false;
-    this.activeUserIdx = 0;
-    this.round = null;
-    this.endRoundTimeOut = null;
+    this.currentUser = 0;
+    this.turnTimer = null;
+    this.chosenWord = this.pickRandomWord();
+    this.firstDrawer = 0;
   }
 
   isFull(): boolean {
-    return this.users.length === config.MAX_PLAYERS_PER_ROOM;
-  }
-  getActiveUser(): User {
-    return this.users[this.activeUserIdx];
+    return this.users.length === setting.MAX_PLAYERS_PER_ROOM;
   }
 
   addUser(user: User): void {
-    if (this.users.length > config.MAX_PLAYERS_PER_ROOM) {
+    if (this.users.length > setting.MAX_PLAYERS_PER_ROOM) {
       throw new Error('too many players');
     }
     this.users.push(user);
-    this.broadcast('userJoin', user.describe());
-    this.broadcastChatMsg({
+    this.sendData('userJoin', user.describe());
+    this.sendChat({
       type: 'good',
       msg: `${user.username} has joined the game`,
-      
     });
+  }
+
+  gameStart(): void {
+    this.sendData('gameStart', 1);
+    this.gameStarted = true;
+  }
+  endGame(): void {
+    this.sendData('gameEnd', 1);
+  }
+  getcurrentUser(): User {
+    return this.users[this.currentUser];
+  }
+
+
+  
+
+  // let drawing: any = []
+  
     
-  }
-  removeUser(user: User): void {
-    this.users = this.users.filter((usr) => usr.id !== user.id);
-    this.broadcastChatMsg({
-      type: 'bad',
-      msg: `${user.username} has left the game`,
-    });
-    this.broadcast('userLeave', user.describe());
-  }
-  broadcast(
+
+  //Sends data to all users except the current user
+  sendData(
     msg: string,
     payload: unknown,
     excludedUser: User | undefined = undefined
@@ -58,87 +72,79 @@ export default class Room {
       }
     });
   }
-  addToDrawingState(drawing: any): void {
-    this.drawingState.push(drawing);
-  }
-  clearDrawingState(): void {
-    this.drawingState = [];
-  }
-  startGame(): void {
-    this.broadcast('gameStart', 1);
-    this.gameStarted = true;
-  }
-  endGame(): void {
-    this.broadcast('gameEnd', 1);
-  }
-  getRoundInfo() {
-    if (!this.round) {
-      throw new Error();
-    }
-    return {
-      socketId: this.getActiveUser().id,
-      startTime: this.round.startTime,
-      timeToComplete: this.round.timeToComplete,
-      word: this.round.word,
-    };
-  }
-  startRound(): void {
-    this.round = new Round();
-    const roundInfo = this.getRoundInfo();
-    this.broadcast('roundStart', {
-      ...roundInfo,
-      word: roundInfo.word.replace(/./gs, '_'),
-    });
-    this.getActiveUser().socket.emit('roundStart', roundInfo);
-    this.broadcastChatMsg({
-      msg: `It is ${this.getActiveUser().username}'s turn to draw`,
-      type: 'alert',
-    });
-    this.endRoundTimeOut = setTimeout(() => {
-      this.endRound();
-      setTimeout(() => this.startNextRound(), config.ROUND_DELAY);
-    }, this.round.timeToComplete);
+  sendChat(msg: ChatMsg, excludedUser?: User) {
+    this.sendData('chatMsg', msg, excludedUser);
   }
 
-  endRound(activeUser?: User): void {
-    if (!activeUser) {
-      activeUser = this.getActiveUser();
+  pickRandomWord(): string {
+    return words[Math.floor(Math.random() * words.length)];
+    
+  }
+
+  drawStart(): void{
+    this.sendData('drawStart',{
+      socketId: this.users[this.currentUser].id,
+      startTime: Date.now(),
+      timeToComplete: setting.TIME_EACH_TURN,
+      word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
+    })
+    this.users[0].socket.emit('drawStart', {
+      socketId: this.users[this.currentUser].id,
+      startTime: Date.now(),
+      timeToComplete: setting.TIME_EACH_TURN,
+      word: this.chosenWord
+    })
+    this.sendChat({
+      msg: `It is ${this.users[this.currentUser].username}'s turn to draw`,
+      type: 'alert',
+    })
+    this.turnTimer=setTimeout(()=>{
+        this.sendData('drawEnd', 1);
+        this.nextTurn();
+    }, setting.TIME_EACH_TURN)
+    console.log("draw start iS WORKING")
+  }
+
+  guessWord(): void{
+    this.sendData('guessWord',{
+      socketId: this.users[this.currentUser].id,
+      startTime: Date.now(),
+      timeToComplete: setting.TIME_TO_GUESS,
+      
+    })
+    this.users[this.currentUser].socket.emit('guessWord', {
+      socketId: this.users[this.currentUser].id,
+      startTime: Date.now(),
+      timeToComplete: setting.TIME_TO_GUESS,
+      
+    })
+    this.sendChat({
+      msg: `${this.users[this.currentUser].username}' - Take a guess at what your comrades drew!`,
+      type: 'alert',
+    })
+    this.turnTimer=setTimeout(()=>{
+        this.sendData('drawEnd', 1);
+        this.currentUser=-1;
+        this.chosenWord=this.pickRandomWord()
+        this.sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
+        setTimeout(()=>{
+          this.users.push(this.users[0]);
+          this.nextTurn()
+        }, setting.ROUND_DELAY)
+    }, setting.TIME_TO_GUESS)
+    console.log("GUESS start iS WORKING")
+  }
+
+  nextTurn(){
+    if (this.currentUser + 2 === this.users.length) {
+      this.currentUser++
+      this.guessWord();
     }
-    if (!activeUser) {
-      return;
-    }
-    if (!this.round) {
-      return;
-    }
-    this.broadcast('wordReveal', this.round.word);
-    this.broadcast('roundEnd', 1);
-    this.round.isActive = false;
-    const roundScores = this.round.getScores(activeUser.id, this.users);
-    this.broadcast('roundScores', roundScores);
-    for (const user of this.users) {
-      user.score += roundScores[user.id];
+    else {
+      this.currentUser++;
+      // drawing = [];
+      this.drawStart();
     }
   }
-  startNextRound(): void {
-    this.activeUserIdx++;
-    this.drawingState = [];
-    if (this.activeUserIdx >= this.users.length) {
-      this.endGame();
-    } else {
-      this.startRound();
-    }
-  }
-  broadcastChatMsg(msg: ChatMsg, excludedUser?: User) {
-    this.broadcast('chatMsg', msg, excludedUser);
-  }
-  broadcastChatMsgToCorrectGuessers(msg: ChatMsg) {
-    const correctGuessers = this.users.filter((user) =>
-      this.round?.didUserGuess(user.id)
-    );
-    correctGuessers.push(this.getActiveUser());
-    correctGuessers.forEach((user) => user.socket.emit('chatMsg', msg));
-  }
-  getUsersState() {
-    return this.users.map((user: User) => user.describe());
-  }
+
 }

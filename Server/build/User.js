@@ -6,6 +6,8 @@ var User = /** @class */ (function () {
         this.socket = socket;
         this.score = 0;
         this.username = username;
+        this.team = true;
+        this.position = 0;
     }
     User.prototype.describe = function () {
         return { id: this.id, username: this.username, score: this.score };

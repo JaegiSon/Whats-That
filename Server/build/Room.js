@@ -1,56 +1,47 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var config_1 = __importDefault(require("./config"));
-var Round_1 = __importDefault(require("./Round"));
+var Settings_1 = __importDefault(require("./Settings"));
+var fs_1 = __importDefault(require("fs"));
+var words = JSON.parse(fs_1.default.readFileSync(__dirname + "/../words.json").toString());
 var Room = /** @class */ (function () {
     function Room() {
         this.users = [];
-        this.drawingState = [];
         this.gameStarted = false;
-        this.activeUserIdx = 0;
-        this.round = null;
-        this.endRoundTimeOut = null;
+        this.currentUser = 0;
+        this.turnTimer = null;
+        this.chosenWord = this.pickRandomWord();
+        this.firstDrawer = 0;
     }
     Room.prototype.isFull = function () {
-        return this.users.length === config_1.default.MAX_PLAYERS_PER_ROOM;
-    };
-    Room.prototype.getActiveUser = function () {
-        return this.users[this.activeUserIdx];
+        return this.users.length === Settings_1.default.MAX_PLAYERS_PER_ROOM;
     };
     Room.prototype.addUser = function (user) {
-        if (this.users.length > config_1.default.MAX_PLAYERS_PER_ROOM) {
+        if (this.users.length > Settings_1.default.MAX_PLAYERS_PER_ROOM) {
             throw new Error('too many players');
         }
         this.users.push(user);
-        this.broadcast('userJoin', user.describe());
-        this.broadcastChatMsg({
+        this.sendData('userJoin', user.describe());
+        this.sendChat({
             type: 'good',
             msg: user.username + " has joined the game",
         });
     };
-    Room.prototype.removeUser = function (user) {
-        this.users = this.users.filter(function (usr) { return usr.id !== user.id; });
-        this.broadcastChatMsg({
-            type: 'bad',
-            msg: user.username + " has left the game",
-        });
-        this.broadcast('userLeave', user.describe());
+    Room.prototype.gameStart = function () {
+        this.sendData('gameStart', 1);
+        this.gameStarted = true;
     };
-    Room.prototype.broadcast = function (msg, payload, excludedUser) {
+    Room.prototype.endGame = function () {
+        this.sendData('gameEnd', 1);
+    };
+    Room.prototype.getcurrentUser = function () {
+        return this.users[this.currentUser];
+    };
+    // let drawing: any = []
+    //Sends data to all users except the current user
+    Room.prototype.sendData = function (msg, payload, excludedUser) {
         if (excludedUser === void 0) { excludedUser = undefined; }
         this.users.forEach(function (user) {
             if (!excludedUser || (excludedUser && user.id !== excludedUser.id)) {
@@ -58,86 +49,74 @@ var Room = /** @class */ (function () {
             }
         });
     };
-    Room.prototype.addToDrawingState = function (drawing) {
-        this.drawingState.push(drawing);
+    Room.prototype.sendChat = function (msg, excludedUser) {
+        this.sendData('chatMsg', msg, excludedUser);
     };
-    Room.prototype.clearDrawingState = function () {
-        this.drawingState = [];
+    Room.prototype.pickRandomWord = function () {
+        return words[Math.floor(Math.random() * words.length)];
     };
-    Room.prototype.startGame = function () {
-        this.broadcast('gameStart', 1);
-        this.gameStarted = true;
-    };
-    Room.prototype.endGame = function () {
-        this.broadcast('gameEnd', 1);
-    };
-    Room.prototype.getRoundInfo = function () {
-        if (!this.round) {
-            throw new Error();
-        }
-        return {
-            socketId: this.getActiveUser().id,
-            startTime: this.round.startTime,
-            timeToComplete: this.round.timeToComplete,
-            word: this.round.word,
-        };
-    };
-    Room.prototype.startRound = function () {
+    Room.prototype.drawStart = function () {
         var _this = this;
-        this.round = new Round_1.default();
-        var roundInfo = this.getRoundInfo();
-        this.broadcast('roundStart', __assign(__assign({}, roundInfo), { word: roundInfo.word.replace(/./gs, '_') }));
-        this.getActiveUser().socket.emit('roundStart', roundInfo);
-        this.broadcastChatMsg({
-            msg: "It is " + this.getActiveUser().username + "'s turn to draw",
+        this.sendData('drawStart', {
+            socketId: this.users[this.currentUser].id,
+            startTime: Date.now(),
+            timeToComplete: Settings_1.default.TIME_EACH_TURN,
+            word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
+        });
+        this.users[0].socket.emit('drawStart', {
+            socketId: this.users[this.currentUser].id,
+            startTime: Date.now(),
+            timeToComplete: Settings_1.default.TIME_EACH_TURN,
+            word: this.chosenWord
+        });
+        this.sendChat({
+            msg: "It is " + this.users[this.currentUser].username + "'s turn to draw",
             type: 'alert',
         });
-        this.endRoundTimeOut = setTimeout(function () {
-            _this.endRound();
-            setTimeout(function () { return _this.startNextRound(); }, config_1.default.ROUND_DELAY);
-        }, this.round.timeToComplete);
+        this.turnTimer = setTimeout(function () {
+            _this.sendData('drawEnd', 1);
+            _this.nextTurn();
+        }, Settings_1.default.TIME_EACH_TURN);
+        console.log("draw start iS WORKING");
     };
-    Room.prototype.endRound = function (activeUser) {
-        if (!activeUser) {
-            activeUser = this.getActiveUser();
-        }
-        if (!activeUser) {
-            return;
-        }
-        if (!this.round) {
-            return;
-        }
-        this.broadcast('wordReveal', this.round.word);
-        this.broadcast('roundEnd', 1);
-        this.round.isActive = false;
-        var roundScores = this.round.getScores(activeUser.id, this.users);
-        this.broadcast('roundScores', roundScores);
-        for (var _i = 0, _a = this.users; _i < _a.length; _i++) {
-            var user = _a[_i];
-            user.score += roundScores[user.id];
-        }
+    Room.prototype.guessWord = function () {
+        var _this = this;
+        this.sendData('guessWord', {
+            socketId: this.users[this.currentUser].id,
+            startTime: Date.now(),
+            timeToComplete: Settings_1.default.TIME_TO_GUESS,
+        });
+        this.users[this.currentUser].socket.emit('guessWord', {
+            socketId: this.users[this.currentUser].id,
+            startTime: Date.now(),
+            timeToComplete: Settings_1.default.TIME_TO_GUESS,
+        });
+        this.sendChat({
+            msg: this.users[this.currentUser].username + "' - Take a guess at what your comrades drew!",
+            type: 'alert',
+        });
+        this.turnTimer = setTimeout(function () {
+            _this.sendData('drawEnd', 1);
+            _this.currentUser = -1;
+            _this.chosenWord = _this.pickRandomWord();
+            _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.ROUND_DELAY / 1000 + " seconds" });
+            setTimeout(function () {
+                _this.users.push(_this.users[0]);
+                _this.nextTurn();
+            }, Settings_1.default.ROUND_DELAY);
+        }, Settings_1.default.TIME_TO_GUESS);
+        console.log("GUESS start iS WORKING");
     };
-    Room.prototype.startNextRound = function () {
-        this.activeUserIdx++;
-        this.drawingState = [];
-        if (this.activeUserIdx >= this.users.length) {
-            this.endGame();
+    Room.prototype.nextTurn = function () {
+        if (this.currentUser + 2 === this.users.length) {
+            this.currentUser++;
+            this.guessWord();
         }
         else {
-            this.startRound();
+            this.currentUser++;
+            // drawing = [];
+            this.drawStart();
         }
-    };
-    Room.prototype.broadcastChatMsg = function (msg, excludedUser) {
-        this.broadcast('chatMsg', msg, excludedUser);
-    };
-    Room.prototype.broadcastChatMsgToCorrectGuessers = function (msg) {
-        var _this = this;
-        var correctGuessers = this.users.filter(function (user) { var _a; return (_a = _this.round) === null || _a === void 0 ? void 0 : _a.didUserGuess(user.id); });
-        correctGuessers.push(this.getActiveUser());
-        correctGuessers.forEach(function (user) { return user.socket.emit('chatMsg', msg); });
-    };
-    Room.prototype.getUsersState = function () {
-        return this.users.map(function (user) { return user.describe(); });
     };
     return Room;
 }());
