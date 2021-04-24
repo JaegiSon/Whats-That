@@ -128,13 +128,15 @@ export default class Room{
         this.chosenWord=this.pickRandomWord()
         this.sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
         setTimeout(()=>{
-          this.users.push(this.users[0]);
+          this.rotateUsers()
           this.nextTurn()
         }, setting.ROUND_DELAY)
     }, setting.TIME_TO_GUESS)
     console.log("GUESS start iS WORKING")
   }
-
+  rotateUsers(){
+    this.users.sort(() => .5 - Math.random());
+  }
   nextTurn(){
     if (this.currentUser + 2 === this.users.length) {
       this.currentUser++

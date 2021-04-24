@@ -101,11 +101,14 @@ var Room = /** @class */ (function () {
             _this.chosenWord = _this.pickRandomWord();
             _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.ROUND_DELAY / 1000 + " seconds" });
             setTimeout(function () {
-                _this.users.push(_this.users[0]);
+                _this.rotateUsers();
                 _this.nextTurn();
             }, Settings_1.default.ROUND_DELAY);
         }, Settings_1.default.TIME_TO_GUESS);
         console.log("GUESS start iS WORKING");
+    };
+    Room.prototype.rotateUsers = function () {
+        this.users.sort(function () { return .5 - Math.random(); });
     };
     Room.prototype.nextTurn = function () {
         if (this.currentUser + 2 === this.users.length) {
