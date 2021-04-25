@@ -13,7 +13,6 @@ var Room = /** @class */ (function () {
         this.currentUser = 0;
         this.turnTimer = null;
         this.chosenWord = this.pickRandomWord();
-        this.firstDrawer = 0;
     }
     Room.prototype.isFull = function () {
         return this.users.length === Settings_1.default.MAX_PLAYERS;
@@ -40,13 +39,22 @@ var Room = /** @class */ (function () {
     Room.prototype.getcurrentUser = function () {
         return this.users[this.currentUser];
     };
-    // let drawing: any = []
     //Sends data to all users except the current user
     Room.prototype.sendData = function (msg, payload, excludedUser) {
         if (excludedUser === void 0) { excludedUser = undefined; }
         this.users.forEach(function (user) {
             if (!excludedUser || (excludedUser && user.id !== excludedUser.id)) {
                 user.socket.emit(msg, payload);
+            }
+        });
+    };
+    Room.prototype.sendDrawing = function (msg, payload, excludedUser) {
+        if (excludedUser === void 0) { excludedUser = undefined; }
+        this.users.forEach(function (user) {
+            if (!excludedUser || (excludedUser && user.id !== excludedUser.id)) {
+                if (!excludedUser || user.position - 1 === excludedUser.position || user.position < excludedUser.position) {
+                    user.socket.emit(msg, payload);
+                }
             }
         });
     };
@@ -62,7 +70,7 @@ var Room = /** @class */ (function () {
             socketId: this.users[this.currentUser].id,
             startTime: Date.now(),
             timeToComplete: Settings_1.default.TIME_PER_DRAW,
-            word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
+            word: this.chosenWord.replace(/./gs, '*') //use regex to replace the words with _
         });
         this.users[0].socket.emit('drawStart', {
             socketId: this.users[this.currentUser].id,

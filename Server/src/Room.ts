@@ -1,7 +1,7 @@
-import express from 'express';
 import User from './User';
 import setting from './Settings';
 import fs from 'fs';
+
 const words: string[] = JSON.parse(
   fs.readFileSync(`${__dirname}/../words.json`).toString()
 );
@@ -15,7 +15,6 @@ export default class Room{
   currentUser: number;
   turnTimer: NodeJS.Timeout | null;
   chosenWord: string;
-  firstDrawer: number;
   
   constructor() {
     this.users = [];
@@ -23,7 +22,6 @@ export default class Room{
     this.currentUser = 0;
     this.turnTimer = null;
     this.chosenWord = this.pickRandomWord();
-    this.firstDrawer = 0;
   }
 
   isFull(): boolean {
@@ -54,13 +52,6 @@ export default class Room{
     return this.users[this.currentUser];
   }
 
-
-  
-
-  // let drawing: any = []
-  
-    
-
   //Sends data to all users except the current user
   sendData(
     msg: string,
@@ -73,6 +64,19 @@ export default class Room{
       }
     });
   }
+  sendDrawing(
+    msg: string,
+    payload: unknown,
+    excludedUser: User | undefined = undefined
+  ): void {
+    this.users.forEach((user: User): void => {
+      if (!excludedUser || (excludedUser && user.id !== excludedUser.id)) {
+        if(!excludedUser || user.position-1===excludedUser.position || user.position < excludedUser.position){
+          user.socket.emit(msg, payload);}
+        } 
+    });
+  }
+
   sendChat(msg: ChatMsg, excludedUser?: User) {
     this.sendData('chatMsg', msg, excludedUser);
   }
@@ -87,7 +91,7 @@ export default class Room{
       socketId: this.users[this.currentUser].id,
       startTime: Date.now(),
       timeToComplete: setting.TIME_PER_DRAW,
-      word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
+      word: this.chosenWord.replace(/./gs, '*') //use regex to replace the words with _
     })
     this.users[0].socket.emit('drawStart', {
       socketId: this.users[this.currentUser].id,

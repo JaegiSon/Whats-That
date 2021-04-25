@@ -58,8 +58,7 @@ io.on('connection', function (socket) {
     }
     socket.on('lineDraw', function (msg) {
         if (room.getcurrentUser().id === user.id) {
-            // drawing.push(msg);
-            room.sendData('lineDraw', msg, user);
+            room.sendDrawing('lineDraw', msg, user);
         }
     });
     socket.on('chatMsg', function (msg) {

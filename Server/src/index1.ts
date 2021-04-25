@@ -2,7 +2,7 @@ import express from 'express';
 import User from './User';
 import Room from './Room'
 import setting from './Settings';
-import fs from 'fs';
+
 
 export type ChatMsg = { msg: string; type: string; username?: string };
 
@@ -55,8 +55,7 @@ io.on('connection', (socket: SocketIO.Socket): void => {
 
   socket.on('lineDraw', (msg): void => {
     if (room.getcurrentUser().id === user.id) {
-      // drawing.push(msg);
-      room.sendData('lineDraw', msg, user);
+      room.sendDrawing('lineDraw', msg, user);
     }
   });
 
