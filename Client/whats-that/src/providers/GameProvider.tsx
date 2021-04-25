@@ -44,22 +44,22 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
   const [activeUserId, setActiveUserId] = React.useState<null | string>(null);
   const [wordReal, setWordReal] = React.useState<null | string>(null);
   const [score, setScore] = React.useState<number>(0)
-
+  //instance of socket to use
   const socket = Socket.getSocket();
-
+  //reset drawing and change turns at the end of each draw round
   const endRound = (): void => {
     setDrawingPermission(false);
     setIsWaitingForNextRd(true);
     setRoundTime(null);
     setActiveUserId(null);
   };
-
+  //at the end of game, execute
   const endGame = (): void => {
     endRound();
     socket.disconnect();
     props.exitGame();
   };
-
+  //Game logic to update state that will be passed down
   useEffect(() => {
     socket.on('gameStart', (): void => {
       setIsGameStarted(true);
@@ -78,7 +78,6 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
       });
       setWord(msg.word);
     });
-
     socket.on('guessWord', (msg: any): void => {
       setActiveUserId(msg.socketId);
       if (msg.socketId === socket.id) {
@@ -98,8 +97,8 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
     socket.on('usersState', (users: User[]) => {
       setUsers(users);
     });
-
   }, []);
+    //Game logic to be rendered and re-rendereed at change of users and score
   useEffect(() => {
     socket.on('userJoin', (user: User) => {
       setUsers([...users, user]);
@@ -123,7 +122,7 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
       socket.removeEventListener('userLeave');
     };
   }, [users, score]);
-
+  //pass through values of state variables in to the provider and pass them down to children
   return (
     <GameContext.Provider
       value={{
@@ -141,5 +140,4 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
     </GameContext.Provider>
   );
 };
-
 export default GameProvider;

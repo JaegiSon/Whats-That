@@ -12,6 +12,7 @@ const RoundInfo: React.FC = () => {
     GameContext
   ) as GameContextProps;
   let renderedContent: JSX.Element;
+    //if round isn't active at the moment, show
   if (isWaitingForNextRd) {
     return (
       <div id="roundinfo-container">
@@ -19,6 +20,7 @@ const RoundInfo: React.FC = () => {
       </div>
     );
   }
+  //if round is going on, show current word and current score
   if (roundTime) {
     renderedContent = (
       <>
@@ -29,6 +31,7 @@ const RoundInfo: React.FC = () => {
   } else {
     renderedContent = <div id="round-waiting">Waiting...</div>;
   }
+
   return <div id="roundinfo-container">{renderedContent}</div>;
 };
 export default RoundInfo;

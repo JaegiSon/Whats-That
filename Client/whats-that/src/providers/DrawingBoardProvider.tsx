@@ -39,13 +39,12 @@ const DrawingBoardProvider: React.FC = (props) => {
       socket.on('lineDraw', (line: Line) => {
         drawLine(line);
       });
-
       socket.on('drawStart', () => {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);//clear canvas at start of new drawing
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); //clear canvas at start of new drawing
       });
     }
   }, [ctx]);
-
+//Create a new line on receipt of line event data at each time it's called
   const drawLine = (line: Line) => {
     if (!ctx) {
       return;
@@ -58,7 +57,7 @@ const DrawingBoardProvider: React.FC = (props) => {
       ctx.beginPath();
     }
   };
-
+  //create new line and send it to server
   const draw = (event: BoardEvent, isEnding = false) => {
     if (!ctx || !isDrawing || !context.drawingPermission) {
       return;
@@ -73,6 +72,7 @@ const DrawingBoardProvider: React.FC = (props) => {
     drawLine(newLine);
     socket.emit('lineDraw', newLine);
   };
+  //functions to be passed down to drawing board component to be called back
   const handleMouseMove = (event: BoardEvent): void => {
     draw(event);
   };
@@ -86,6 +86,7 @@ const DrawingBoardProvider: React.FC = (props) => {
   };
 
   return (
+    //pass through values of state variables in to the provider and pass them down to children
     <DrawingBoardContext.Provider
       value={{
         isDrawing,

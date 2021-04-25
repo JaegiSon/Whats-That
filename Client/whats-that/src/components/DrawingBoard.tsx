@@ -1,19 +1,12 @@
 import React, { useLayoutEffect } from 'react';
-import {
-  DrawingBoardContext,
-  DrawingBoardContextProps,
-} from '../providers/DrawingBoardProvider';
-
-// interface DrawingBoardProps {
-//   width: number;
-//   height: number;
-// }
+import {DrawingBoardContext, DrawingBoardContextProps,} from '../providers/DrawingBoardProvider';
 
 const DrawingBoard: React.FC = (props) => {
   const context = React.useContext(
     DrawingBoardContext
   ) as DrawingBoardContextProps;
   const ref = React.useRef<HTMLCanvasElement>(null);
+    //create canvas element and populate canvas
   useLayoutEffect(() => {
     const canvas = ref.current as HTMLCanvasElement;
     canvas.height = 600;
@@ -24,6 +17,7 @@ const DrawingBoard: React.FC = (props) => {
     ctx.lineJoin = 'round';
     context.setCtx(ctx);
   }, []);
+
   return (
     <canvas
       ref={ref}

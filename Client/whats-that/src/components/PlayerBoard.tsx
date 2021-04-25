@@ -2,11 +2,13 @@ import React from 'react';
 import { GameContext, GameContextProps } from '../providers/GameProvider';
 
 const PlayerBoard: React.FC = () => {
+  //pull in state data from provider components
   const { users, activeUserId } = React.useContext(
     GameContext
   ) as GameContextProps;
   let action: string = ""
 
+  //sort users based on their position 
   users.sort((userA, userB) => {
     if (userA.position > userB.position) {
       return 1;
@@ -16,9 +18,9 @@ const PlayerBoard: React.FC = () => {
       return 0;
     }
   });
-  
+  //map to store user positiosn
   const positions: Record<string, number> = {};
-
+//For each user calculate what action the user is to do and place them in position order
   users.forEach((user, idx) => (
     positions[user.id] = idx + 1));
     return (
