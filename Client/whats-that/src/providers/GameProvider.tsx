@@ -1,17 +1,12 @@
 import React, { useEffect } from 'react';
-import Socket from '../utils/Socket';
+import Socket from '../components/Socket';
 
 export type User = {
   id: string;
-  score: number;
   username: string;
+  position: number;
 };
 
-export type RoundScore = {
-  userId: string;
-  username: string;
-  score: number;
-};
 export type RoundTime = {
   timeToComplete: number;
   startTime: number;
@@ -24,10 +19,13 @@ export interface GameContextProps {
   isWaitingForNextRd: boolean;
   roundTime: null | RoundTime;
   word: null | string;
-  roundScores: RoundScore[];
   activeUserId: string | null;
   wordReal: string | null;
+  score: number
+  positionL: number
 }
+
+//create context with empty object for now
 export const GameContext = React.createContext<Partial<GameContextProps>>({});
 
 interface GameProviderProps {
@@ -36,32 +34,37 @@ interface GameProviderProps {
 }
 
 const GameProvider: React.FC<GameProviderProps> = (props) => {
+  //Declare state and variables required
   const [users, setUsers] = React.useState<User[]>([]);
   const [drawingPermission, setDrawingPermission] = React.useState(false);
   const [isGameStarted, setIsGameStarted] = React.useState(false);
   const [isWaitingForNextRd, setIsWaitingForNextRd] = React.useState(false);
   const [roundTime, setRoundTime] = React.useState<null | RoundTime>(null);
   const [word, setWord] = React.useState<null | string>(null);
-  const [roundScores, setRoundScores] = React.useState<RoundScore[]>([]);
   const [activeUserId, setActiveUserId] = React.useState<null | string>(null);
   const [wordReal, setWordReal] = React.useState<null | string>(null);
+  const [score, setScore] = React.useState<number>(0)
+
   const socket = Socket.getSocket();
+
   const endRound = (): void => {
     setDrawingPermission(false);
     setIsWaitingForNextRd(true);
     setRoundTime(null);
     setActiveUserId(null);
   };
+
   const endGame = (): void => {
     endRound();
     socket.disconnect();
     props.exitGame();
   };
+
   useEffect(() => {
     socket.on('gameStart', (): void => {
       setIsGameStarted(true);
     });
-    socket.on('roundStart', (msg: any): void => {
+    socket.on('drawStart', (msg: any): void => {
       setActiveUserId(msg.socketId);
       if (msg.socketId === socket.id) {
         setDrawingPermission(true);
@@ -75,7 +78,24 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
       });
       setWord(msg.word);
     });
-    socket.on('roundEnd', endRound);
+    socket.on('correctGuess', (): void => {
+      setScore(score + 1)
+    })
+    socket.on('guessWord', (msg: any): void => {
+      setActiveUserId(msg.socketId);
+      if (msg.socketId === socket.id) {
+        setDrawingPermission(true);
+      } else {
+        setDrawingPermission(false);
+      }
+      setIsWaitingForNextRd(false);
+      setRoundTime({
+        timeToComplete: msg.timeToComplete,
+        startTime: msg.startTime,
+      });
+      setWord(msg.word);
+    });
+    socket.on('drawEnd', endRound);
     socket.on('wordReveal', (wrdReal: string) => {
       setWordReal(wrdReal);
     });
@@ -92,27 +112,20 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
     socket.on('userLeave', (user: User) => {
       setUsers(users.filter((usr) => usr.id !== user.id));
     });
-    socket.on('roundScores', (rdScores: Record<string, number>) => {
+    socket.on('shuffle', (roundPositions: Record<string, number>) => {
       const newUsers: User[] = [];
-      const rdScoresCurr: RoundScore[] = [];
       for (const user of users) {
-        rdScoresCurr.push({
-          userId: user.id,
-          score: rdScores[user.id],
-          username: user.username,
-        });
-        const newUser = { ...user, score: user.score + rdScores[user.id] };
+        const newUser = { ...user, position: roundPositions[user.id] };
         newUsers.push(newUser);
       }
-      setRoundScores(rdScoresCurr);
       setUsers(newUsers);
     });
     return () => {
       socket.removeEventListener('userJoin');
       socket.removeEventListener('userLeave');
-      socket.removeEventListener('roundScores');
     };
   }, [users]);
+
   return (
     <GameContext.Provider
       value={{
@@ -122,11 +135,10 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
         isWaitingForNextRd,
         roundTime,
         word,
-        roundScores,
         activeUserId,
         wordReal,
-      }}
-    >
+        score,
+      }}>
       {props.children}
     </GameContext.Provider>
   );

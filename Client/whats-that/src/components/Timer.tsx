@@ -1,5 +1,5 @@
 import React from 'react';
-import { RoundTime } from './RoundInfo';
+import { RoundTime } from './Round';
 
 interface TimerProps {
   roundTime: RoundTime;

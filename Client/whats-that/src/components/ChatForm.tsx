@@ -1,13 +1,14 @@
 import React from 'react';
-import Socket from '../utils/Socket';
+import Socket from './Socket';
+
 const ChatForm: React.FC = () => {
   const [chatInput, setChatInput] = React.useState('');
   const socket = Socket.getSocket();
   return (
     <form
       id="chatbox-form"
-      onSubmit={(ev): void => {
-        ev.preventDefault();
+      onSubmit={(event): void => {
+        event.preventDefault();
         if (chatInput === '') {
           return;
         }
@@ -19,7 +20,7 @@ const ChatForm: React.FC = () => {
         data-testid="chat-input"
         type="text"
         value={chatInput}
-        onChange={(ev): void => setChatInput(ev.target.value)}
+        onChange={(event): void => setChatInput(event.target.value)}
       />
     </form>
   );

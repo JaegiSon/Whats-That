@@ -1,6 +1,6 @@
 import React from 'react';
 import GameProvider from './providers/GameProvider';
-import Game from './components/Game';
+import GameHandler from './components/GameHandler';
 import Home from './components/Home';
 import logo from './logo.svg';
 import './App.css';
@@ -14,9 +14,8 @@ const App: React.FC = () => {
   }
   return (
     <GameProvider exitGame={() => setUsername(null)} username={username}>
-      <Game canvasHeight={700} canvasWidth={800}></Game>
+      <GameHandler></GameHandler>
     </GameProvider>
   );
 };
-
 export default App;

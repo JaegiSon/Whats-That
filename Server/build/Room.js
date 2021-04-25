@@ -23,6 +23,8 @@ var Room = /** @class */ (function () {
             throw new Error('too many players');
         }
         this.users.push(user);
+        user.position = this.users.length;
+        console.log(user.position);
         this.sendData('userJoin', user.describe());
         this.sendChat({
             type: 'good',
@@ -77,7 +79,6 @@ var Room = /** @class */ (function () {
             _this.sendData('drawEnd', 1);
             _this.nextTurn();
         }, Settings_1.default.TIME_EACH_TURN);
-        console.log("draw start iS WORKING");
     };
     Room.prototype.guessWord = function () {
         var _this = this;
@@ -102,13 +103,24 @@ var Room = /** @class */ (function () {
             _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.ROUND_DELAY / 1000 + " seconds" });
             setTimeout(function () {
                 _this.rotateUsers();
+                _this.sendData('shuffle', _this.getPositions(_this.currentUser, _this.users));
                 _this.nextTurn();
             }, Settings_1.default.ROUND_DELAY);
         }, Settings_1.default.TIME_TO_GUESS);
-        console.log("GUESS start iS WORKING");
     };
     Room.prototype.rotateUsers = function () {
         this.users.sort(function () { return .5 - Math.random(); });
+        for (var i = 0; i < this.users.length; i++) {
+            this.users[i].position = i + 1;
+        }
+    };
+    Room.prototype.getPositions = function (currentUser, users) {
+        var userPositions = {};
+        for (var _i = 0, users_1 = users; _i < users_1.length; _i++) {
+            var user = users_1[_i];
+            userPositions[user.id] = user.position;
+        }
+        return userPositions;
     };
     Room.prototype.nextTurn = function () {
         if (this.currentUser + 2 === this.users.length) {

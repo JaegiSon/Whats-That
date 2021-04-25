@@ -16,7 +16,7 @@ export default class Room{
   turnTimer: NodeJS.Timeout | null;
   chosenWord: string;
   firstDrawer: number;
-
+  
   constructor() {
     this.users = [];
     this.gameStarted = false;
@@ -35,6 +35,8 @@ export default class Room{
       throw new Error('too many players');
     }
     this.users.push(user);
+    user.position=this.users.length
+    console.log(user.position)
     this.sendData('userJoin', user.describe());
     this.sendChat({
       type: 'good',
@@ -102,7 +104,7 @@ export default class Room{
         this.sendData('drawEnd', 1);
         this.nextTurn();
     }, setting.TIME_EACH_TURN)
-    console.log("draw start iS WORKING")
+    
   }
 
   guessWord(): void{
@@ -129,14 +131,24 @@ export default class Room{
         this.sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
         setTimeout(()=>{
           this.rotateUsers()
+          this.sendData('shuffle', this.getPositions(this.currentUser, this.users))
           this.nextTurn()
         }, setting.ROUND_DELAY)
     }, setting.TIME_TO_GUESS)
-    console.log("GUESS start iS WORKING")
   }
   rotateUsers(){
     this.users.sort(() => .5 - Math.random());
+    for (let i = 0; i < this.users.length; i++) {
+      this.users[i].position=i+1
+    }
   }
+  getPositions(currentUser: number, users: User[]){
+    const userPositions: Record<string, number>={}
+    for(const user of users){
+      userPositions[user.id]=user.position}
+      return userPositions;
+  }
+  
   nextTurn(){
     if (this.currentUser + 2 === this.users.length) {
       this.currentUser++

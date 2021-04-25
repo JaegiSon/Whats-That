@@ -8,7 +8,7 @@ export type RoundTime = {
 };
 
 const RoundInfo: React.FC = () => {
-  const { isWaitingForNextRd, roundTime, word } = React.useContext(
+  const { isWaitingForNextRd, roundTime, word, score } = React.useContext(
     GameContext
   ) as GameContextProps;
   let renderedContent: JSX.Element;
@@ -19,11 +19,11 @@ const RoundInfo: React.FC = () => {
       </div>
     );
   }
-  if (roundTime && word) {
+  if (roundTime) {
     renderedContent = (
       <>
         <Timer roundTime={roundTime}></Timer>
-        <div id="round-word">{word}</div>
+        <div id="round-word"><span id="word">Word:</span> {word} <span id="score">Score: {score} </span> </div>
       </>
     );
   } else {

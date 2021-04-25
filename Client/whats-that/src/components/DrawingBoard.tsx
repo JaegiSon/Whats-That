@@ -4,20 +4,20 @@ import {
   DrawingBoardContextProps,
 } from '../providers/DrawingBoardProvider';
 
-interface DrawingBoardProps {
-  width: number;
-  height: number;
-}
+// interface DrawingBoardProps {
+//   width: number;
+//   height: number;
+// }
 
-const DrawingBoard: React.FC<DrawingBoardProps> = (props) => {
+const DrawingBoard: React.FC = (props) => {
   const context = React.useContext(
     DrawingBoardContext
   ) as DrawingBoardContextProps;
   const ref = React.useRef<HTMLCanvasElement>(null);
   useLayoutEffect(() => {
     const canvas = ref.current as HTMLCanvasElement;
-    canvas.height = props.height;
-    canvas.width = props.width;
+    canvas.height = 600;
+    canvas.width = 850;
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     ctx.lineWidth = context.brushSize;
     ctx.lineCap = 'round';
@@ -30,7 +30,6 @@ const DrawingBoard: React.FC<DrawingBoardProps> = (props) => {
       onMouseDown={context.handleMouseDown}
       onMouseUp={context.handleMouseUp}
       onMouseMove={context.handleMouseMove}
-      data-testid="canvas"
     ></canvas>
   );
 };
