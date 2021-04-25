@@ -3,6 +3,7 @@ class User {
   socket: SocketIO.Socket;
   username: string;
   position: number;
+  
   constructor(id: string, socket: SocketIO.Socket, username: string) {
     this.id = id;
     this.socket = socket;
