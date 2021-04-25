@@ -23,7 +23,7 @@ const RoundInfo: React.FC = () => {
     renderedContent = (
       <>
         <Timer roundTime={roundTime}></Timer>
-        <div id="round-word"><span id="word">Word:</span> {word} <span id="score">Score: {score} </span> </div>
+        <div id="round-word"><span id="word">Word:</span> {word} <span id="score">Score: <span id="currentScore">{score}</span></span> </div>
       </>
     );
   } else {

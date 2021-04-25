@@ -1,4 +1,4 @@
-import '../index.css';
+import '../App.css';
 import React from 'react';
 import DrawingBoard from './DrawingBoard';
 import DrawingBoardProvider from '../providers/DrawingBoardProvider';

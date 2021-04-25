@@ -34,19 +34,19 @@ io.on('connection', (socket: SocketIO.Socket): void => {
   
   socket.emit('usersState', room.users.map((user: User) => user.describe()));
 //if the room has enough players, start the game in the room
-  if (room.users.length === setting.MIN_PLAYERS_PER_ROOM) {
+  if (room.users.length === setting.MIN_PLAYERS) {
     room.gameStart();
     room.drawStart()
   }
 
   //if the room has not enough players, send message informing that room requires more players with half a second delay
-  if (room.users.length < setting.MIN_PLAYERS_PER_ROOM) {
+  if (room.users.length < setting.MIN_PLAYERS) {
     setTimeout(
       () =>
         room.sendChat({
           type: 'alert',
           msg: `need ${
-            setting.MIN_PLAYERS_PER_ROOM - room.users.length
+            setting.MIN_PLAYERS - room.users.length
           } more player(s) to start the game`,
         }),
       50    

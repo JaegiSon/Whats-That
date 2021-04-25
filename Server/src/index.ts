@@ -39,13 +39,13 @@ function drawStart(word?: string): void{
   sendData('drawStart',{
     socketId: room[currentUser].id,
     startTime: Date.now(),
-    timeToComplete: setting.TIME_EACH_TURN,
+    timeToComplete: setting.TIME_PER_DRAW,
     word: word?.replace(/./gs, '_') //use regex to replace the words with _
   })
   room[0].socket.emit('drawStart', {
     socketId: room[currentUser].id,
     startTime: Date.now(),
-    timeToComplete: setting.TIME_EACH_TURN,
+    timeToComplete: setting.TIME_PER_DRAW,
     word: word
   })
   sendChat({
@@ -55,7 +55,7 @@ function drawStart(word?: string): void{
   turnTimer=setTimeout(()=>{
       sendData('roundEnd', 1);
       nextTurn()
-  }, setting.TIME_EACH_TURN)
+  }, setting.TIME_PER_DRAW)
 }
 
 function guessWord(word?: string): void{
@@ -79,10 +79,10 @@ function guessWord(word?: string): void{
       sendData('roundEnd', 1);
       currentUser=-1;
       chosenWord=pickRandomWord()
-      sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
+      sendChat({type: 'alert', msg: `The next round will start in ${setting.WAIT_TIME / 1000} seconds`})
       setTimeout(()=>{
         nextTurn()
-      }, setting.ROUND_DELAY)
+      }, setting.WAIT_TIME)
       
   }, setting.TIME_TO_GUESS)
 }
@@ -122,7 +122,7 @@ io.on('connection', (socket: SocketIO.Socket): void => {
   })
   socket.emit('usersState', room.map((user: User) => user.describe()));
 
-  if (room.length === setting.MIN_PLAYERS_PER_ROOM) {
+  if (room.length === setting.MIN_PLAYERS) {
     sendData('gameStart',1)
     
     drawStart(chosenWord)
@@ -130,13 +130,13 @@ io.on('connection', (socket: SocketIO.Socket): void => {
   }
 
   //if the room has not enough players, send message informing that room requires more players with half a second delay
-  if (room.length < setting.MIN_PLAYERS_PER_ROOM) {
+  if (room.length < setting.MIN_PLAYERS) {
     setTimeout(
       () =>
         sendChat({
           type: 'alert',
           msg: `need ${
-            setting.MIN_PLAYERS_PER_ROOM - room.length
+            setting.MIN_PLAYERS - room.length
           } more player(s) to start the game`,
         }),
       50    

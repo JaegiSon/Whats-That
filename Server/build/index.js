@@ -43,16 +43,16 @@ io.on('connection', function (socket) {
     room.addUser(user);
     socket.emit('usersState', room.users.map(function (user) { return user.describe(); }));
     //if the room has enough players, start the game in the room
-    if (room.users.length === Settings_1.default.MIN_PLAYERS_PER_ROOM) {
+    if (room.users.length === Settings_1.default.MIN_PLAYERS) {
         room.gameStart();
         room.drawStart();
     }
     //if the room has not enough players, send message informing that room requires more players with half a second delay
-    if (room.users.length < Settings_1.default.MIN_PLAYERS_PER_ROOM) {
+    if (room.users.length < Settings_1.default.MIN_PLAYERS) {
         setTimeout(function () {
             return room.sendChat({
                 type: 'alert',
-                msg: "need " + (Settings_1.default.MIN_PLAYERS_PER_ROOM - room.users.length) + " more player(s) to start the game",
+                msg: "need " + (Settings_1.default.MIN_PLAYERS - room.users.length) + " more player(s) to start the game",
             });
         }, 50);
     }

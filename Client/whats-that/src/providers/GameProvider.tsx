@@ -78,9 +78,7 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
       });
       setWord(msg.word);
     });
-    socket.on('correctGuess', (): void => {
-      setScore(score + 1)
-    })
+
     socket.on('guessWord', (msg: any): void => {
       setActiveUserId(msg.socketId);
       if (msg.socketId === socket.id) {
@@ -96,9 +94,6 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
       setWord(msg.word);
     });
     socket.on('drawEnd', endRound);
-    socket.on('wordReveal', (wrdReal: string) => {
-      setWordReal(wrdReal);
-    });
     socket.on('gameEnd', endGame);
     socket.on('usersState', (users: User[]) => {
       setUsers(users);
@@ -119,12 +114,15 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
         newUsers.push(newUser);
       }
       setUsers(newUsers);
+    })
+    socket.on('correctGuess', (): void => {
+      setScore(score+1)
     });
     return () => {
       socket.removeEventListener('userJoin');
       socket.removeEventListener('userLeave');
     };
-  }, [users]);
+  }, [users, score]);
 
   return (
     <GameContext.Provider

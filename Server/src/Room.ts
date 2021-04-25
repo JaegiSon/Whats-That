@@ -27,16 +27,15 @@ export default class Room{
   }
 
   isFull(): boolean {
-    return this.users.length === setting.MAX_PLAYERS_PER_ROOM;
+    return this.users.length === setting.MAX_PLAYERS;
   }
 
   addUser(user: User): void {
-    if (this.users.length > setting.MAX_PLAYERS_PER_ROOM) {
+    if (this.users.length > setting.MAX_PLAYERS) {
       throw new Error('too many players');
     }
     this.users.push(user);
     user.position=this.users.length
-    console.log(user.position)
     this.sendData('userJoin', user.describe());
     this.sendChat({
       type: 'good',
@@ -87,13 +86,13 @@ export default class Room{
     this.sendData('drawStart',{
       socketId: this.users[this.currentUser].id,
       startTime: Date.now(),
-      timeToComplete: setting.TIME_EACH_TURN,
+      timeToComplete: setting.TIME_PER_DRAW,
       word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
     })
     this.users[0].socket.emit('drawStart', {
       socketId: this.users[this.currentUser].id,
       startTime: Date.now(),
-      timeToComplete: setting.TIME_EACH_TURN,
+      timeToComplete: setting.TIME_PER_DRAW,
       word: this.chosenWord
     })
     this.sendChat({
@@ -103,7 +102,7 @@ export default class Room{
     this.turnTimer=setTimeout(()=>{
         this.sendData('drawEnd', 1);
         this.nextTurn();
-    }, setting.TIME_EACH_TURN)
+    }, setting.TIME_PER_DRAW)
     
   }
 
@@ -128,12 +127,12 @@ export default class Room{
         this.sendData('drawEnd', 1);
         this.currentUser=-1;
         this.chosenWord=this.pickRandomWord()
-        this.sendChat({type: 'alert', msg: `The next round will start in ${setting.ROUND_DELAY / 1000} seconds`})
+        this.sendChat({type: 'alert', msg: `The next round will start in ${setting.WAIT_TIME / 1000} seconds`})
         setTimeout(()=>{
           this.rotateUsers()
           this.sendData('shuffle', this.getPositions(this.currentUser, this.users))
           this.nextTurn()
-        }, setting.ROUND_DELAY)
+        }, setting.WAIT_TIME)
     }, setting.TIME_TO_GUESS)
   }
   rotateUsers(){

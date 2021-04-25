@@ -16,15 +16,14 @@ var Room = /** @class */ (function () {
         this.firstDrawer = 0;
     }
     Room.prototype.isFull = function () {
-        return this.users.length === Settings_1.default.MAX_PLAYERS_PER_ROOM;
+        return this.users.length === Settings_1.default.MAX_PLAYERS;
     };
     Room.prototype.addUser = function (user) {
-        if (this.users.length > Settings_1.default.MAX_PLAYERS_PER_ROOM) {
+        if (this.users.length > Settings_1.default.MAX_PLAYERS) {
             throw new Error('too many players');
         }
         this.users.push(user);
         user.position = this.users.length;
-        console.log(user.position);
         this.sendData('userJoin', user.describe());
         this.sendChat({
             type: 'good',
@@ -62,13 +61,13 @@ var Room = /** @class */ (function () {
         this.sendData('drawStart', {
             socketId: this.users[this.currentUser].id,
             startTime: Date.now(),
-            timeToComplete: Settings_1.default.TIME_EACH_TURN,
+            timeToComplete: Settings_1.default.TIME_PER_DRAW,
             word: this.chosenWord.replace(/./gs, '_') //use regex to replace the words with _
         });
         this.users[0].socket.emit('drawStart', {
             socketId: this.users[this.currentUser].id,
             startTime: Date.now(),
-            timeToComplete: Settings_1.default.TIME_EACH_TURN,
+            timeToComplete: Settings_1.default.TIME_PER_DRAW,
             word: this.chosenWord
         });
         this.sendChat({
@@ -78,7 +77,7 @@ var Room = /** @class */ (function () {
         this.turnTimer = setTimeout(function () {
             _this.sendData('drawEnd', 1);
             _this.nextTurn();
-        }, Settings_1.default.TIME_EACH_TURN);
+        }, Settings_1.default.TIME_PER_DRAW);
     };
     Room.prototype.guessWord = function () {
         var _this = this;
@@ -100,12 +99,12 @@ var Room = /** @class */ (function () {
             _this.sendData('drawEnd', 1);
             _this.currentUser = -1;
             _this.chosenWord = _this.pickRandomWord();
-            _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.ROUND_DELAY / 1000 + " seconds" });
+            _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.WAIT_TIME / 1000 + " seconds" });
             setTimeout(function () {
                 _this.rotateUsers();
                 _this.sendData('shuffle', _this.getPositions(_this.currentUser, _this.users));
                 _this.nextTurn();
-            }, Settings_1.default.ROUND_DELAY);
+            }, Settings_1.default.WAIT_TIME);
         }, Settings_1.default.TIME_TO_GUESS);
     };
     Room.prototype.rotateUsers = function () {
