@@ -95,7 +95,7 @@ body {
   font-size: 120%;
 }
 canvas {
-  margin-top: 70px;
+  margin-top: 0px;
   background: #ffffff;
   display: block;
   margin: auto;
@@ -158,9 +158,9 @@ canvas {
 #chatbox-container {
   font-family: cursive;
   position: block;
-  margin-top: 40px;
+  margin-top: 0px;
   width: 350px;
-  height: 645px;
+  height: 600px;
   background: rgb(198, 206, 230);
   border-radius: 25px;
 }
@@ -195,7 +195,7 @@ canvas {
   margin: auto;
   height: auto;
   width: 130%;
-  margin-top: 42px;
+  margin-top: 0px;
   grid-column: 1;
   border: 1px solid black;
   background: #edeef2;
