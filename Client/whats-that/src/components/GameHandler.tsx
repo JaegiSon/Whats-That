@@ -10,8 +10,7 @@ import { GameContext, GameContextProps } from '../providers/GameProvider';
 
 const Game: React.FC = () => {
   //destructure object received in from GameContext and take the property required in this FC
-  const { drawingPermission} = React.useContext(GameContext) as GameContextProps;
-  
+  const {drawingPermission} = React.useContext(GameContext) as GameContextProps;
   return (
     <>
       <RoundInfo></RoundInfo>

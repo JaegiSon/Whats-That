@@ -69,6 +69,7 @@ io.on('connection', (socket: SocketIO.Socket): void => {
 //if not, send chat to everyone
   socket.on('chatMsg', (msg): void => {
     if (room.chosenWord === msg.msg) {
+      room.setCorrectGuess(true)
       room.sendChat({
         type: 'good',
         msg: `${user.username} has guessed correctly! The word was "${room.chosenWord}". Good job team!!!`,
@@ -78,5 +79,4 @@ io.on('connection', (socket: SocketIO.Socket): void => {
       room.sendChat({ ...msg, username: user.username })
     }
   })
-  
 });

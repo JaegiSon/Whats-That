@@ -15,6 +15,7 @@ export default class Room{
   currentUser: number;
   turnTimer: NodeJS.Timeout | null;
   chosenWord: string;
+  correctGuess: boolean;
   
   constructor() {
     this.users = [];
@@ -22,6 +23,7 @@ export default class Room{
     this.currentUser = 0;
     this.turnTimer = null;
     this.chosenWord = this.pickRandomWord();
+    this.correctGuess = false;
   }
 
   isFull(): boolean {
@@ -142,7 +144,7 @@ export default class Room{
       timeToComplete: setting.TIME_TO_GUESS,
     })
     this.sendChat({
-      msg: `${this.users[this.currentUser].username}' - Take a guess at what your comrades drew!`,
+      msg: `${this.users[this.currentUser].username} - Take a guess at what your comrades drew!`,
       type: 'alert',
     })
     this.turnTimer=setTimeout(()=>{
@@ -168,5 +170,7 @@ export default class Room{
       this.drawStart();
     }
   }
-
+  setCorrectGuess(answer:boolean){
+    this.correctGuess=answer;
+  }
 }
