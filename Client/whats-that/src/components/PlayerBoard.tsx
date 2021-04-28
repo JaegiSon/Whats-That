@@ -39,7 +39,7 @@ const PlayerBoard: React.FC = () => {
               <div className="action">{action}</div>
               <div className="names">
                 <b>{user.username}</b>
-                {user.id === activeUserId && <span id="pencil">&#128161;</span>}
+                {user.id === activeUserId && <span id="pencil">&#127912;</span>}
               </div>
             </div>
           );

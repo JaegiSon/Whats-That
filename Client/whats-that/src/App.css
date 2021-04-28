@@ -112,12 +112,13 @@ canvas {
 
 #roundinfo-container {
   padding: 10px;
-  width: 50%;
+  width: 100%;
   margin: auto;
   text-align: center;
   font-size: 190%;
   text-align: left;
 }
+
 #score {
   color: black;
   padding: 80px;
@@ -129,7 +130,8 @@ canvas {
 #round-waiting {
   grid-column-start: 1;
   grid-column-end: 3;
-  text-align: center;
+  padding-left: 45%;
+  
 }
 #round-user{
   float: left;
@@ -137,10 +139,17 @@ canvas {
   text-align: left;
 }
 
+#round-username{
+  color:Black;
+  font-family: sans-serif;
+  float:left
+}
+
 #round-word {
   font-family: fantasy;
   color:navy;
   letter-spacing: 3px;
+  padding-left: 25%;
 }
 #word {
   color: black;

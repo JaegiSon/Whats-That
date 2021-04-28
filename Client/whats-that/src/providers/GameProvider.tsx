@@ -22,7 +22,7 @@ export interface GameContextProps {
   activeUserId: string | null;
   wordReal: string | null;
   score: number
-  positionL: number
+  username: string
 }
 
 //create context with empty object for now
@@ -35,6 +35,7 @@ interface GameProviderProps {
 
 const GameProvider: React.FC<GameProviderProps> = (props) => {
   //Declare state and variables required
+  const [username, setUsername] = React.useState<string>(props.username)
   const [users, setUsers] = React.useState<User[]>([]);
   const [drawingPermission, setDrawingPermission] = React.useState(false);
   const [isGameStarted, setIsGameStarted] = React.useState(false);
@@ -135,6 +136,7 @@ const GameProvider: React.FC<GameProviderProps> = (props) => {
         activeUserId,
         wordReal,
         score,
+        username
       }}>
       {props.children}
     </GameContext.Provider>
