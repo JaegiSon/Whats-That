@@ -9,6 +9,7 @@ const words: string[] = JSON.parse(
 
 
 export type ChatMsg = { msg: string; type: string; username?: string };
+
 export default class Room{
   users: User[];
   gameStarted: boolean;
@@ -150,8 +151,13 @@ export default class Room{
     this.turnTimer=setTimeout(()=>{
         this.sendData('drawEnd', 1);
         this.currentUser=-1;
-        this.chosenWord=this.pickRandomWord()
-        this.sendChat({type: 'alert', msg: `The next round will start in ${setting.WAIT_TIME / 1000} seconds`})
+        if(!this.correctGuess){
+          this.sendChat({type: 'alert', msg: `You didn't guess the correct word, it was '${this.chosenWord}'. The next round will start in ${setting.WAIT_TIME / 1000} seconds`})}
+        else{
+          this.sendChat({type: 'alert', msg: `The next round will start in ${setting.WAIT_TIME / 1000} seconds`});
+        }
+        this.setCorrectGuess(false);
+        this.chosenWord=this.pickRandomWord();
         setTimeout(()=>{
           this.rotateUsers()  //shuffle users in the queue
           this.sendData('shuffle', this.getPositions(this.currentUser, this.users)) //send position data to client to re-render

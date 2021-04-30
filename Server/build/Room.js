@@ -134,8 +134,11 @@ var Room = /** @class */ (function () {
         this.turnTimer = setTimeout(function () {
             _this.sendData('drawEnd', 1);
             _this.currentUser = -1;
+            (!_this.correctGuess) ?
+                _this.sendChat({ type: 'alert', msg: "You didn't guess the correct word, it was '" + _this.chosenWord + "'. The next round will start in " + Settings_1.default.WAIT_TIME / 1000 + " seconds" }) :
+                _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.WAIT_TIME / 1000 + " seconds" });
+            _this.setCorrectGuess(false);
             _this.chosenWord = _this.pickRandomWord();
-            _this.sendChat({ type: 'alert', msg: "The next round will start in " + Settings_1.default.WAIT_TIME / 1000 + " seconds" });
             setTimeout(function () {
                 _this.rotateUsers(); //shuffle users in the queue
                 _this.sendData('shuffle', _this.getPositions(_this.currentUser, _this.users)); //send position data to client to re-render
